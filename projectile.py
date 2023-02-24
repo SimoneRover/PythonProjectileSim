@@ -1,5 +1,6 @@
 import pygame
 import math
+import time
 
 pygame.init()
 
@@ -17,6 +18,11 @@ pygame.display.set_caption("Projectile Motion Simulation")
 
 # Create font object
 font = pygame.font.Font(None, 24)
+
+# Init prompt
+initPrompt = font.render("Click to set the angle", True, WHITE)
+screen.blit(initPrompt, (30,20))
+pygame.display.update()
 
 # Set the initial velocity of the projectile
 v0 = 75.0
@@ -52,22 +58,35 @@ while running:
         # Check for mouse click event
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if not angle_set:
+                screen.fill(BLACK)
+                pygame.display.update()
                 # Get the angle of projection from the mouse click
                 theta = -math.atan2(event.pos[1] - y, event.pos[0] - x)
                 vx = v0 * math.cos(theta)
                 vy = v0 * math.sin(theta)
-
                 # Calc data
                 horizRange = (v0**2 * math.sin(2*theta)) / g
                 maxHeight = (vy**2) / (2*g)
                 flightTime = 2*(vy/g)
-
                 # Update displayed infos
                 angleText = font.render("Theta: {}°".format( round((theta*180)/math.pi, 2) ), True, WHITE)
                 rangeText = font.render("Range: {} m".format( round(horizRange, 2) ), True, WHITE)
                 heightText = font.render("Max height: {} m".format( round(maxHeight, 2) ), True, WHITE)
                 timeText = font.render("Flight duration: {} s".format( round(flightTime, 2) ), True, WHITE)
 
+                # Compute trajectory
+                # x(t) = vx * t
+                # y(t) = (vy * t) - (g/2 * t^2)
+                while not ground_reached:
+                    trajectory.append((vx*t, height - (vy*t - g/2*t**2)))
+                    pygame.draw.circle(screen, WHITE, (vx*t, height - (vy*t - g/2*t**2)), 1)
+                    pygame.display.update()
+                    time.sleep(0.001)
+                    t += dt
+                    ground_reached = t >= flightTime
+
+
+                t = 0
                 angle_set = True
                 ground_reached = False
             else:
@@ -76,12 +95,18 @@ while running:
                 t = 0
                 trajectory = []
                 screen.fill(BLACK)
+                screen.blit(initPrompt, (30,20))
                 angle_set = False
-                ground_reached = True
+                ground_reached = False
                 
     if angle_set and not ground_reached:
         # Clear the screen
         screen.fill(BLACK)
+
+        # Draw trajectory
+        for i in range(0, len(trajectory), 10):
+            pygame.draw.circle(screen, WHITE, trajectory[i], 1)
+
         # Update the position and velocity of the projectile
         x += vx * dt
         y -= (vy * dt + 0.5 * g * dt ** 2)
@@ -93,16 +118,12 @@ while running:
             y = height
             x = horizRange
             t = flightTime
+
         # Update dynamic infos
         currentHeightText = font.render("Current height: {} m".format( round(height - y, 2) ), True, WHITE)
         currentDistanceText = font.render("Horizontal distance travelled: {} m".format( round(x, 2) ), True, WHITE)
         timeElapsedText = font.render("Time elapsed: {} s".format( round(t, 2) ), True, WHITE)
-        # Update trajectory list
-        trajectory.append((x,y))
-        # Draw trajectory
-        if len(trajectory) > 1:
-            for i in range(len(trajectory)-1):
-                pygame.draw.line(screen, WHITE, trajectory[i], trajectory[i+1], 1)
+        
         # Draw the projectile on the screen
         pygame.draw.circle(screen, WHITE, (int(x), int(y)), 7)
 
